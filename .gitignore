@@ -1,0 +1,4 @@
+go.sum
+cover*
+test_*
+*.db
