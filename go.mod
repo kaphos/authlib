@@ -1,4 +1,4 @@
-module github.com/kaphos/auth
+module github.com/kaphos/authlib
 
 go 1.13
 

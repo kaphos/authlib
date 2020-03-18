@@ -1,4 +1,4 @@
-# Kaphos Go Auth Package
+# Kaphos Go Authlib Package
 
 This package is intended for internal use for authentication backends. 
 
@@ -6,9 +6,9 @@ To use, first initialise an object, passing in parameters for the configuration:
 
 ```go
 
-import github.com/kaphos/auth
+import github.com/kaphos/authlib
 
-config := auth.Config{
+config := authlib.Config{
     KMSPath:        "auth.keys",
     DBPath:         "auth.db",
     IdleTimeout:    time.Hour,
@@ -17,7 +17,7 @@ config := auth.Config{
     HashIterations: 7,
     HashMemory:     48,
 }
-authObj := auth.New(config)
+authObj := authlib.New(config)
 ```
 
 Several functions are exported:
