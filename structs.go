@@ -12,7 +12,6 @@ type cookiePayload struct {
 // LoginPayload contains the login details that is being passed in to be checked & stored.
 type LoginPayload struct {
 	ID               string // Unique identifier of the user
-	Username         string
 	ProvidedPassword string
 	PasswordHash     string
 	RmbMe            bool
