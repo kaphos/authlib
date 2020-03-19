@@ -10,7 +10,8 @@ import (
 
 // secureCookie provides a handler to easily set and retrieve encrypted cookies.
 type secureCookie struct {
-	SC *securecookie.SecureCookie
+	SC     *securecookie.SecureCookie
+	config Config
 }
 
 var scSingleton *secureCookie
@@ -18,14 +19,15 @@ var scOnce sync.Once
 
 // GetSC returns the singleton secure cookie instance.
 // Prepares & generates the keys if need be.
-func getSC(configPath string) *secureCookie {
+func getSC(config Config) *secureCookie {
 	scOnce.Do(func() {
-		kms := getKMS(configPath)
+		kms := getKMS(config.KMSPath)
 		hashKey := kms.CookiesHash
 		blockKey := kms.CookiesBlock
 
 		scSingleton = &secureCookie{
-			SC: securecookie.New(hashKey, blockKey),
+			SC:     securecookie.New(hashKey, blockKey),
+			config: config,
 		}
 	})
 	return scSingleton
@@ -35,13 +37,18 @@ func getSC(configPath string) *secureCookie {
 func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookiePayload, cookieLifetime time.Duration) (err error) {
 	// Set the cookie
 	if encoded, encErr := sc.SC.Encode(key, payload); encErr == nil {
+		path := "/"
+		if len(sc.config.CookiePath) > 0 {
+			path = sc.config.CookiePath
+		}
 		cookie := &http.Cookie{
-			Name:    key,
-			Value:   encoded,
-			Path:    "/",
-			Secure:  false,
-			Expires: time.Now().Add(cookieLifetime),
-			MaxAge:  int(cookieLifetime.Seconds()),
+			Name:     key,
+			Value:    encoded,
+			Path:     path,
+			Secure:   sc.config.CookieSecure,
+			HttpOnly: sc.config.CookieHTTPOnly,
+			Expires:  time.Now().Add(cookieLifetime),
+			MaxAge:   int(cookieLifetime.Seconds()),
 		}
 
 		http.SetCookie(w, cookie)

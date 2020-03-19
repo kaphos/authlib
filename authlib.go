@@ -23,7 +23,7 @@ type Object struct {
 func New(config Config) *Object {
 	authObj := Object{
 		config: config,
-		sc:     getSC(config.KMSPath),
+		sc:     getSC(config),
 		store:  getStore(),
 		kms:    getKMS(config.KMSPath),
 		db:     getDB(config.DBPath),

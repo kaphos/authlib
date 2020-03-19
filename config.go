@@ -11,4 +11,7 @@ type Config struct {
 	RmbMeTimeout   time.Duration // How long the "Remember Me" token is valid for
 	HashMemory     uint32        // Number of megabytes that argon2 should use
 	HashIterations uint32        // Number of iterations that argon2 should use
+	CookiePath     string        // Path of cookie. Defaults to "/"
+	CookieSecure   bool          // Whether to use secure cookies
+	CookieHTTPOnly bool          // Whether to only http
 }
