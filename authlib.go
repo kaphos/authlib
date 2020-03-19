@@ -33,7 +33,15 @@ func New(config Config) *Object {
 
 // HashPassword using argon2
 func (a *Object) HashPassword(password string) (hash string) {
-	return argon2Hash(password, a.config.HashMemory, a.config.HashIterations)
+	hashMemory := a.config.HashMemory
+	hashIterations := a.config.HashIterations
+	if hashMemory == 0 {
+		hashMemory = 48
+	}
+	if hashIterations == 0 {
+		hashIterations = 7
+	}
+	return argon2Hash(password, hashMemory, hashIterations)
 }
 
 // AttemptLogin for a given user. Called when trying to log in.

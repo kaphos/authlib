@@ -9,8 +9,8 @@ type Config struct {
 	IdleTimeout    time.Duration // How long they can be idle before they're logged out
 	ForcedTimeout  time.Duration // How long the session can persist before they're asked to log in again
 	RmbMeTimeout   time.Duration // How long the "Remember Me" token is valid for
-	HashMemory     uint32        // Number of megabytes that argon2 should use
-	HashIterations uint32        // Number of iterations that argon2 should use
+	HashMemory     uint32        // Number of megabytes that argon2 should use. Defaults to 48.
+	HashIterations uint32        // Number of iterations that argon2 should use. Defaults to 7.
 	CookiePath     string        // Path of cookie. Defaults to "/"
 	CookieSecure   bool          // Whether to use secure cookies
 	CookieHTTPOnly bool          // Whether to only http
