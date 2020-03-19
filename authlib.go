@@ -80,9 +80,13 @@ func (a *Object) CheckLogin(w http.ResponseWriter, r *http.Request) (userID stri
 					valid = true
 				}
 			}
+		} else {
+			log.Println("authlib: Invalid cookie")
 		}
+	} else {
+		log.Println("authlib: Could not retrievecookie")
 	}
-	log.Println("Could not decrypt cookie")
+
 	return
 }
 
