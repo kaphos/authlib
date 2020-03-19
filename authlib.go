@@ -2,7 +2,6 @@ package authlib
 
 import (
 	"errors"
-	"log"
 	"net/http"
 )
 
@@ -82,7 +81,7 @@ func (a *Object) CheckLogin(w http.ResponseWriter, r *http.Request) (userID stri
 			}
 		}
 	}
-	log.Println("Could not decrypt cookie")
+
 	return
 }
 
