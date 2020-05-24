@@ -9,9 +9,9 @@ import (
 )
 
 func (a *Object) setCookie(key, token string, w http.ResponseWriter) (err error) {
-	err = a.sc.Set(w, "auth", cookieOpts{
-		key:   key,
-		token: token,
+	err = a.sc.Set(w, "auth", cookieValue{
+		Key:   key,
+		Token: token,
 	}, a.config.ForcedTimeout)
 	return
 }

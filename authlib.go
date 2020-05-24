@@ -93,15 +93,18 @@ func (a *Object) CheckLogin(opts HTTPOpts) (userID string, valid bool) {
 		spanContext = span.Context()
 	}
 
-	cookieOptsValue, err := a.sc.Get(opts.HTTPRequest, "auth")
-	cookieOptsValue.spanContext = spanContext
+	cookieObj, err := a.sc.Get(opts.HTTPRequest, "auth")
 	if err == nil {
 		// Check if key is in our in-mem store
-		userID, valid = a.checkValidCookie(cookieOptsValue)
+		userID, valid = a.checkValidCookie(cookieOpts{
+			key:         cookieObj.Key,
+			token:       cookieObj.Token,
+			spanContext: spanContext,
+		})
 		if !valid {
 			// Not valid
 			// Check to see if rmb me cookie is valid
-			userID, err = a.checkRmbMeCookie(opts.HTTPWriter, opts.HTTPRequest)
+			userID, err = a.checkRmbMeCookie(opts)
 			if err == nil {
 				err = a.saveLogin(saveLoginOpts{
 					userID:      userID,
@@ -122,25 +125,22 @@ func (a *Object) CheckLogin(opts HTTPOpts) (userID string, valid bool) {
 // Logout clears out the relevant cookies on the user side,
 // while also removing the respective data on the server side.
 func (a *Object) Logout(opts HTTPOpts) {
-	var spanContext opentracing.SpanContext
 	if opts.SpanContext != nil {
 		span := opentracing.StartSpan("authlib-logout", opentracing.ChildOf(opts.SpanContext))
 		defer span.Finish()
-		spanContext = span.Context()
 	}
 
-	cookieOptsValue, err := a.sc.Get(opts.HTTPRequest, "auth")
+	cookieObj, err := a.sc.Get(opts.HTTPRequest, "auth")
 	if err == nil {
-		a.store.unset(cookieOptsValue.key)
+		a.store.unset(cookieObj.Key)
 	}
-	a.sc.Set(opts.HTTPWriter, "auth", cookieOpts{}, 0)
+	a.sc.Set(opts.HTTPWriter, "auth", cookieValue{}, 0)
 
 	// Clear remember me also, if it exists
-	cookieOptsValue, err = a.sc.Get(opts.HTTPRequest, "rmbme")
-	cookieOptsValue.spanContext = spanContext
+	cookieObj, err = a.sc.Get(opts.HTTPRequest, "rmbme")
 	if err == nil {
-		a.sc.Set(opts.HTTPWriter, "rmbme", cookieOpts{}, 0)
-		a.db.RemoveSingle(cookieOptsValue.key)
+		a.sc.Set(opts.HTTPWriter, "rmbme", cookieValue{}, 0)
+		a.db.RemoveSingle(cookieObj.Key)
 	}
 }
 
@@ -154,10 +154,13 @@ func (a *Object) LogoutAll(opts HTTPOpts) {
 		spanContext = span.Context()
 	}
 
-	cookieOptsValue, err := a.sc.Get(opts.HTTPRequest, "auth")
-	cookieOptsValue.spanContext = spanContext
+	cookieObj, err := a.sc.Get(opts.HTTPRequest, "auth")
 	if err == nil {
-		userID, valid := a.checkValidCookie(cookieOptsValue)
+		userID, valid := a.checkValidCookie(cookieOpts{
+			key:         cookieObj.Key,
+			token:       cookieObj.Token,
+			spanContext: spanContext,
+		})
 		if valid {
 			a.db.RemoveAll(userID)
 			a.store.unsetAll(userID)

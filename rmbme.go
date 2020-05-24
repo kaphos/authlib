@@ -44,25 +44,29 @@ func (a *Object) generateRmbMeCookie(w http.ResponseWriter, userID string) error
 	}
 
 	// Then take resulting values to save as secure cookie
-	return a.sc.Set(w, "rmbme", cookieOpts{
-		key:   key,
-		token: token,
+	return a.sc.Set(w, "rmbme", cookieValue{
+		Key:   key,
+		Token: token,
 	}, a.config.RmbMeTimeout)
 }
 
-func (a *Object) checkRmbMeCookie(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-	cookieOptsValue, err := a.sc.Get(r, "rmbme")
+func (a *Object) checkRmbMeCookie(opts HTTPOpts) (userID string, err error) {
+	cookieObj, err := a.sc.Get(opts.HTTPRequest, "rmbme")
 	if err == nil {
-		userID, err = a.checkRmbMeInDB(cookieOptsValue)
+		userID, err = a.checkRmbMeInDB(cookieOpts{
+			key:         cookieObj.Key,
+			token:       cookieObj.Token,
+			spanContext: opts.SpanContext,
+		})
 		if err == nil {
 			// Valid rmb me token
 			err = a.saveLogin(saveLoginOpts{
 				userID: userID,
 				rmbMe:  true,
-				w:      w,
+				w:      opts.HTTPWriter,
 			})
 			if err == nil {
-				a.generateRmbMeCookie(w, userID)
+				a.generateRmbMeCookie(opts.HTTPWriter, userID)
 			}
 		}
 	}

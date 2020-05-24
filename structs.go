@@ -21,11 +21,24 @@ type cookieOpts struct {
 	spanContext opentracing.SpanContext
 }
 
+// cookieValue contains the data that will be stored as a secure cookie
+type cookieValue struct {
+	Key   string
+	Token string
+}
+
 type storeValue struct {
 	HashedToken string
 	UserID      string
 	Expires     time.Time
 	MaxExpiry   time.Time
+}
+
+type saveLoginOpts struct {
+	userID      string
+	rmbMe       bool
+	w           http.ResponseWriter
+	spanContext opentracing.SpanContext
 }
 
 // HashPasswordOpts bundles the options for hashing a password.
@@ -51,11 +64,4 @@ type HTTPOpts struct {
 	HTTPWriter  http.ResponseWriter
 	HTTPRequest *http.Request
 	SpanContext opentracing.SpanContext // Used for instrumenting with opentracing API
-}
-
-type saveLoginOpts struct {
-	userID      string
-	rmbMe       bool
-	w           http.ResponseWriter
-	spanContext opentracing.SpanContext
 }
