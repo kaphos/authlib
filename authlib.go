@@ -1,8 +1,6 @@
 package authlib
 
 import (
-	"errors"
-
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -50,10 +48,14 @@ func (a *Object) HashPassword(opts HashPasswordOpts) (hash string) {
 }
 
 // AttemptLogin for a given user. Called when trying to log in.
-// Takes in the provided password as well as
-// the password hash, and performs the comparison. If invalid, will throw an error.
-// If accepted, it will manage the respective cookies.
-func (a *Object) AttemptLogin(opts AttemptLoginOpts) (err error) {
+// Takes in the provided password as well as the password hash,
+// and performs the comparison. If the password doesn't match
+// the hash, it will return ok as false. If accepted, it will
+// manage the respective cookies.
+// ok = true: Logged in
+// ok = false, err = nil: Wrong password
+// ok = false, err != nil: An error occurred
+func (a *Object) AttemptLogin(opts AttemptLoginOpts) (ok bool, err error) {
 	var spanContext opentracing.SpanContext
 	if opts.SpanContext != nil {
 		span := opentracing.StartSpan("authlib-attemptLogin", opentracing.ChildOf(opts.SpanContext))
@@ -61,31 +63,26 @@ func (a *Object) AttemptLogin(opts AttemptLoginOpts) (err error) {
 		spanContext = span.Context()
 	}
 
-	match, compareError := comparePasswordAndHash(comparePasswordOpts{
+	match, err := comparePasswordAndHash(comparePasswordOpts{
 		password:    opts.ProvidedPassword,
 		encodedHash: opts.PasswordHash,
 	})
 	if match {
-		// Perform login
+		// Password matches hash. Perform login.
 		err = a.saveLogin(saveLoginOpts{
 			userID:      opts.ID,
 			rmbMe:       opts.RmbMe,
 			w:           opts.HTTPWriter,
 			spanContext: spanContext,
 		})
-	} else {
-		if compareError != nil {
-			err = compareError
-		} else {
-			err = errors.New("Could not authenticate")
-		}
+		ok = (err == nil)
 	}
 	return
 }
 
 // CheckLogin checks if a user has a valid auth cookie.
 // Called when verifying authentication for an endpoint.
-func (a *Object) CheckLogin(opts HTTPOpts) (userID string, valid bool) {
+func (a *Object) CheckLogin(opts HTTPOpts) (userID string, valid bool, err error) {
 	var spanContext opentracing.SpanContext
 	if opts.SpanContext != nil {
 		span := opentracing.StartSpan("authlib-checkLogin", opentracing.ChildOf(opts.SpanContext))
