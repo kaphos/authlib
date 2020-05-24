@@ -51,7 +51,10 @@ func (d *database) Insert(key, hashedToken, userID string) (err error) {
 // Fetch a user ID and hashed token, given a key.
 func (d *database) Fetch(key string) (userID, hashedToken string, err error) {
 	row := d.DB.QueryRow(`SELECT user_id, token_hash FROM tokens WHERE key = $1 LIMIT 1`, key)
-	err = row.Scan(&userID, &hashedToken)
+	dbErr := row.Scan(&userID, &hashedToken)
+	if dbErr != sql.ErrNoRows {
+		err = dbErr // We only want to raise implementation errors
+	}
 	return
 }
 

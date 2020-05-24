@@ -19,7 +19,8 @@ func (a *Object) generateRmbMe(userID string) (key, token string, err error) {
 func (a *Object) checkRmbMeInDB(cookieOptsValue cookieOpts) (userID string, err error) {
 	var storedHash string
 	userID, storedHash, err = a.db.Fetch(cookieOptsValue.key)
-	if err != nil {
+	if err != nil || userID == "" {
+		// Either an error occurred, or no user was found
 		return
 	}
 
