@@ -11,9 +11,9 @@ func TestGenerateRmbMe(t *testing.T) {
 		t.Error("Error generating rmb me token:", err)
 	}
 
-	userIDFound, err := a.checkRmbMeInDB(cookiePayload{
-		Key:   key,
-		Token: token,
+	userIDFound, err := a.checkRmbMeInDB(cookieOpts{
+		key:   key,
+		token: token,
 	})
 
 	if err != nil {
@@ -22,9 +22,9 @@ func TestGenerateRmbMe(t *testing.T) {
 		t.Error("Wrong user ID retrieved")
 	}
 
-	_, err = a.checkRmbMeInDB(cookiePayload{
-		Key:   key,
-		Token: token + token,
+	_, err = a.checkRmbMeInDB(cookieOpts{
+		key:   key,
+		token: token + token,
 	})
 
 	if err == nil {

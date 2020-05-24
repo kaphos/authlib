@@ -22,9 +22,9 @@ func TestCheckLoginCookie(t *testing.T) {
 	a.setInMemStore(key, quickHash(token), userID)
 
 	// Test for valid user
-	userFound, valid := a.checkValidCookie(cookiePayload{
-		Key:   key,
-		Token: token,
+	userFound, valid := a.checkValidCookie(cookieOpts{
+		key:   key,
+		token: token,
 	})
 	if !valid {
 		t.Error("Login should have been valid, but was not accepted")
@@ -33,9 +33,9 @@ func TestCheckLoginCookie(t *testing.T) {
 	}
 
 	// Test for wrong token
-	userFound, valid = a.checkValidCookie(cookiePayload{
-		Key:   key,
-		Token: token + token,
+	userFound, valid = a.checkValidCookie(cookieOpts{
+		key:   key,
+		token: token + token,
 	})
 	if valid {
 		t.Error("Login should not have been accepted")

@@ -16,18 +16,22 @@ func (a *Object) generateRmbMe(userID string) (key, token string, err error) {
 }
 
 // Checks if a given cookie payload (token & key) matches what we have in the database.
-func (a *Object) checkRmbMeInDB(cookieValue cookiePayload) (userID string, err error) {
+func (a *Object) checkRmbMeInDB(cookieOptsValue cookieOpts) (userID string, err error) {
 	var storedHash string
-	userID, storedHash, err = a.db.Fetch(cookieValue.Key)
+	userID, storedHash, err = a.db.Fetch(cookieOptsValue.key)
 	if err != nil {
 		return
 	}
 
-	match, err := comparePasswordAndHash(cookieValue.Token, storedHash)
+	match, err := comparePasswordAndHash(comparePasswordOpts{
+		password:    cookieOptsValue.token,
+		encodedHash: storedHash,
+	})
+
 	if err != nil || !match {
 		// Invalidate database entry
 		err = errors.New("Invalid token value")
-		a.db.RemoveSingle(cookieValue.Key)
+		a.db.RemoveSingle(cookieOptsValue.key)
 		return
 	}
 	return
@@ -40,20 +44,23 @@ func (a *Object) generateRmbMeCookie(w http.ResponseWriter, userID string) error
 	}
 
 	// Then take resulting values to save as secure cookie
-	return a.sc.Set(w, "rmbme", cookiePayload{
-		Key:   key,
-		Token: token,
+	return a.sc.Set(w, "rmbme", cookieOpts{
+		key:   key,
+		token: token,
 	}, a.config.RmbMeTimeout)
 }
 
 func (a *Object) checkRmbMeCookie(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-	var cookieValue cookiePayload
-	cookieValue, err = a.sc.Get(r, "rmbme")
+	cookieOptsValue, err := a.sc.Get(r, "rmbme")
 	if err == nil {
-		userID, err = a.checkRmbMeInDB(cookieValue)
+		userID, err = a.checkRmbMeInDB(cookieOptsValue)
 		if err == nil {
 			// Valid rmb me token
-			err = a.saveLogin(userID, true, w)
+			err = a.saveLogin(saveLoginOpts{
+				userID: userID,
+				rmbMe:  true,
+				w:      w,
+			})
 			if err == nil {
 				a.generateRmbMeCookie(w, userID)
 			}

@@ -34,7 +34,7 @@ func getSC(config Config) *secureCookie {
 }
 
 // Set creates a secure cookie using the given payload.
-func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookiePayload, cookieLifetime time.Duration) (err error) {
+func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookieOpts, cookieLifetime time.Duration) (err error) {
 	// Set the cookie
 	if encoded, encErr := sc.SC.Encode(key, payload); encErr == nil {
 		path := "/"
@@ -59,7 +59,7 @@ func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookiePay
 }
 
 // Get retrieves and decodes a secure cookie.
-func (sc *secureCookie) Get(r *http.Request, key string) (value cookiePayload, err error) {
+func (sc *secureCookie) Get(r *http.Request, key string) (value cookieOpts, err error) {
 	if cookie, err := r.Cookie(key); err == nil {
 		err = sc.SC.Decode(key, cookie.Value, &value)
 	}

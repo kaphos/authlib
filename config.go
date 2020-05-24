@@ -1,6 +1,8 @@
 package authlib
 
-import "time"
+import (
+	"time"
+)
 
 // Config contains the package parameters that can be tuned
 type Config struct {

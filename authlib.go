@@ -2,7 +2,8 @@ package authlib
 
 import (
 	"errors"
-	"net/http"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 // Object contains the initialised config, along with several helper modules
@@ -31,7 +32,12 @@ func New(config Config) *Object {
 }
 
 // HashPassword using argon2
-func (a *Object) HashPassword(password string) (hash string) {
+func (a *Object) HashPassword(opts HashPasswordOpts) (hash string) {
+	if opts.SpanContext != nil {
+		span := opentracing.StartSpan("authlib-hashPassword", opentracing.ChildOf(opts.SpanContext))
+		defer span.Finish()
+	}
+
 	hashMemory := a.config.HashMemory
 	hashIterations := a.config.HashIterations
 	if hashMemory == 0 {
@@ -40,18 +46,33 @@ func (a *Object) HashPassword(password string) (hash string) {
 	if hashIterations == 0 {
 		hashIterations = 7
 	}
-	return argon2Hash(password, hashMemory, hashIterations)
+	return argon2Hash(opts.Password, hashMemory, hashIterations)
 }
 
 // AttemptLogin for a given user. Called when trying to log in.
 // Takes in the provided password as well as
 // the password hash, and performs the comparison. If invalid, will throw an error.
 // If accepted, it will manage the respective cookies.
-func (a *Object) AttemptLogin(w http.ResponseWriter, payload LoginPayload) (err error) {
-	match, compareError := comparePasswordAndHash(payload.ProvidedPassword, payload.PasswordHash)
+func (a *Object) AttemptLogin(opts AttemptLoginOpts) (err error) {
+	var spanContext opentracing.SpanContext
+	if opts.SpanContext != nil {
+		span := opentracing.StartSpan("authlib-attemptLogin", opentracing.ChildOf(opts.SpanContext))
+		defer span.Finish()
+		spanContext = span.Context()
+	}
+
+	match, compareError := comparePasswordAndHash(comparePasswordOpts{
+		password:    opts.ProvidedPassword,
+		encodedHash: opts.PasswordHash,
+	})
 	if match {
 		// Perform login
-		err = a.saveLogin(payload.ID, payload.RmbMe, w)
+		err = a.saveLogin(saveLoginOpts{
+			userID:      opts.ID,
+			rmbMe:       opts.RmbMe,
+			w:           opts.HTTPWriter,
+			spanContext: spanContext,
+		})
 	} else {
 		if compareError != nil {
 			err = compareError
@@ -64,17 +85,30 @@ func (a *Object) AttemptLogin(w http.ResponseWriter, payload LoginPayload) (err 
 
 // CheckLogin checks if a user has a valid auth cookie.
 // Called when verifying authentication for an endpoint.
-func (a *Object) CheckLogin(w http.ResponseWriter, r *http.Request) (userID string, valid bool) {
-	cookieValue, err := a.sc.Get(r, "auth")
+func (a *Object) CheckLogin(opts HTTPOpts) (userID string, valid bool) {
+	var spanContext opentracing.SpanContext
+	if opts.SpanContext != nil {
+		span := opentracing.StartSpan("authlib-checkLogin", opentracing.ChildOf(opts.SpanContext))
+		defer span.Finish()
+		spanContext = span.Context()
+	}
+
+	cookieOptsValue, err := a.sc.Get(opts.HTTPRequest, "auth")
+	cookieOptsValue.spanContext = spanContext
 	if err == nil {
 		// Check if key is in our in-mem store
-		userID, valid = a.checkValidCookie(cookieValue)
+		userID, valid = a.checkValidCookie(cookieOptsValue)
 		if !valid {
 			// Not valid
 			// Check to see if rmb me cookie is valid
-			userID, err = a.checkRmbMeCookie(w, r)
+			userID, err = a.checkRmbMeCookie(opts.HTTPWriter, opts.HTTPRequest)
 			if err == nil {
-				err = a.saveLogin(userID, true, w)
+				err = a.saveLogin(saveLoginOpts{
+					userID:      userID,
+					rmbMe:       true,
+					w:           opts.HTTPWriter,
+					spanContext: spanContext,
+				})
 				if err == nil {
 					valid = true
 				}
@@ -87,31 +121,47 @@ func (a *Object) CheckLogin(w http.ResponseWriter, r *http.Request) (userID stri
 
 // Logout clears out the relevant cookies on the user side,
 // while also removing the respective data on the server side.
-func (a *Object) Logout(w http.ResponseWriter, r *http.Request) {
-	cookieValue, err := a.sc.Get(r, "auth")
-	if err == nil {
-		a.store.unset(cookieValue.Key)
+func (a *Object) Logout(opts HTTPOpts) {
+	var spanContext opentracing.SpanContext
+	if opts.SpanContext != nil {
+		span := opentracing.StartSpan("authlib-logout", opentracing.ChildOf(opts.SpanContext))
+		defer span.Finish()
+		spanContext = span.Context()
 	}
-	a.sc.Set(w, "auth", cookiePayload{}, 0)
+
+	cookieOptsValue, err := a.sc.Get(opts.HTTPRequest, "auth")
+	if err == nil {
+		a.store.unset(cookieOptsValue.key)
+	}
+	a.sc.Set(opts.HTTPWriter, "auth", cookieOpts{}, 0)
 
 	// Clear remember me also, if it exists
-	cookieValue, err = a.sc.Get(r, "rmbme")
+	cookieOptsValue, err = a.sc.Get(opts.HTTPRequest, "rmbme")
+	cookieOptsValue.spanContext = spanContext
 	if err == nil {
-		a.sc.Set(w, "rmbme", cookiePayload{}, 0)
-		a.db.RemoveSingle(cookieValue.Key)
+		a.sc.Set(opts.HTTPWriter, "rmbme", cookieOpts{}, 0)
+		a.db.RemoveSingle(cookieOptsValue.key)
 	}
 }
 
 // LogoutAll removes all stored tokens in the database, and also
 // invalidates the current login session
-func (a *Object) LogoutAll(w http.ResponseWriter, r *http.Request) {
-	cookieValue, err := a.sc.Get(r, "auth")
+func (a *Object) LogoutAll(opts HTTPOpts) {
+	var spanContext opentracing.SpanContext
+	if opts.SpanContext != nil {
+		span := opentracing.StartSpan("authlib-logoutAll", opentracing.ChildOf(opts.SpanContext))
+		defer span.Finish()
+		spanContext = span.Context()
+	}
+
+	cookieOptsValue, err := a.sc.Get(opts.HTTPRequest, "auth")
+	cookieOptsValue.spanContext = spanContext
 	if err == nil {
-		userID, valid := a.checkValidCookie(cookieValue)
+		userID, valid := a.checkValidCookie(cookieOptsValue)
 		if valid {
 			a.db.RemoveAll(userID)
 			a.store.unsetAll(userID)
 		}
 	}
-	a.Logout(w, r)
+	a.Logout(opts)
 }

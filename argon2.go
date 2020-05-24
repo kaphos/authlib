@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/securecookie"
+	"github.com/opentracing/opentracing-go"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -85,16 +86,20 @@ func decodeHash(encodedHash string) (p *params, salt, hash []byte, err error) {
 	return p, salt, hash, nil
 }
 
-func comparePasswordAndHash(password, encodedHash string) (match bool, err error) {
-	// Extract the parameters, salt and derived key from the encoded password
-	// hash.
-	p, salt, hash, err := decodeHash(encodedHash)
+func comparePasswordAndHash(opts comparePasswordOpts) (match bool, err error) {
+	if opts.spanContext != nil {
+		span := opentracing.StartSpan("authlib-comparePw", opentracing.ChildOf(opts.spanContext))
+		defer span.Finish()
+	}
+
+	// Extract the parameters, salt and derived key from the encoded password hash.
+	p, salt, hash, err := decodeHash(opts.encodedHash)
 	if err != nil {
 		return false, err
 	}
 
 	// Derive the key from the other password using the same parameters.
-	otherHash := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+	otherHash := argon2.IDKey([]byte(opts.password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
 
 	// Check that the contents of the hashed passwords are identical. Note
 	// that we are using the subtle.ConstantTimeCompare() function for this
