@@ -60,7 +60,8 @@ func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookieVal
 
 // Get retrieves and decodes a secure cookie.
 func (sc *secureCookie) Get(r *http.Request, key string) (value cookieValue, err error) {
-	if cookie, err := r.Cookie(key); err == nil {
+	cookie, err := r.Cookie(key)
+	if err == nil {
 		err = sc.SC.Decode(key, cookie.Value, &value)
 	}
 	return
