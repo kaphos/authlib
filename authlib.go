@@ -1,6 +1,8 @@
 package authlib
 
 import (
+	"net/http"
+
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -91,27 +93,33 @@ func (a *Object) CheckLogin(opts HTTPOpts) (userID string, valid bool, err error
 	}
 
 	cookieObj, err := a.sc.Get(opts.HTTPRequest, "auth")
-	if err == nil {
-		// Check if key is in our in-mem store
-		userID, valid = a.checkValidCookie(cookieOpts{
-			key:         cookieObj.Key,
-			token:       cookieObj.Token,
-			spanContext: spanContext,
-		})
-		if !valid {
-			// Not valid
-			// Check to see if rmb me cookie is valid
-			userID, err = a.checkRmbMeCookie(opts)
+	if err != nil {
+		// Check if error was due to cookie not being found
+		if err == http.ErrNoCookie {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+
+	// Check if key is in our in-mem store
+	userID, valid = a.checkValidCookie(cookieOpts{
+		key:         cookieObj.Key,
+		token:       cookieObj.Token,
+		spanContext: spanContext,
+	})
+	if !valid {
+		// Not valid
+		// Check to see if rmb me cookie is valid
+		userID, err = a.checkRmbMeCookie(opts)
+		if err == nil {
+			err = a.saveLogin(saveLoginOpts{
+				userID:      userID,
+				rmbMe:       true,
+				w:           opts.HTTPWriter,
+				spanContext: spanContext,
+			})
 			if err == nil {
-				err = a.saveLogin(saveLoginOpts{
-					userID:      userID,
-					rmbMe:       true,
-					w:           opts.HTTPWriter,
-					spanContext: spanContext,
-				})
-				if err == nil {
-					valid = true
-				}
+				valid = true
 			}
 		}
 	}
