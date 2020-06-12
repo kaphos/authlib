@@ -9,7 +9,7 @@ import (
 
 func TestRedisStore(t *testing.T) {
 	store, err := createRedisStore(":6379", randStr(8))
-	defer store.conn.Close()
+	defer store.pool.Close()
 	if assert.Empty(t, err, "unable to instantiate redis store") {
 		key := randStr(64)
 		value := randStr(64)
@@ -65,8 +65,8 @@ func TestMultipleRedisStores(t *testing.T) {
 	store2, err2 := createRedisStore(":6379", randStr(8))
 	assert.Empty(t, err2, "Error creating redis store 2")
 
-	defer store1.conn.Close()
-	defer store2.conn.Close()
+	defer store1.pool.Close()
+	defer store2.pool.Close()
 
 	key := randStr(64)
 	value := randStr(64)

@@ -3,12 +3,13 @@ package authlib
 import (
 	"bytes"
 	"encoding/gob"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
 )
 
 type redisStore struct {
-	conn      redis.Conn
+	pool      *redis.Pool
 	namespace string
 }
 
@@ -33,11 +34,18 @@ func decodeGob(b []byte, result *storeValue) {
 }
 
 func createRedisStore(connStr, namespace string) (redisStore, error) {
-	c, err := redis.Dial("tcp", connStr)
-	if err != nil {
+	pool := &redis.Pool{
+		MaxIdle:     3,
+		IdleTimeout: 5 * time.Second,
+		Wait:        true,
+		Dial:        func() (redis.Conn, error) { return redis.Dial("tcp", connStr, redis.DialConnectTimeout(1*time.Second)) },
+	}
+
+	if _, err := pool.Get().Do("PING"); err != nil {
 		return redisStore{}, err
 	}
-	return redisStore{conn: c, namespace: namespace}, nil
+
+	return redisStore{pool: pool, namespace: namespace}, nil
 }
 
 func (store redisStore) formatKey(key string) string {
@@ -45,12 +53,16 @@ func (store redisStore) formatKey(key string) string {
 }
 
 func (store redisStore) set(key string, value storeValue) {
-	store.conn.Do("SET", store.formatKey(key), encodeGob(value))
-	store.conn.Do("EXPIREAT", store.formatKey(key), value.MaxExpiry.Unix())
+	conn := store.pool.Get()
+	defer conn.Close()
+	conn.Do("SET", store.formatKey(key), encodeGob(value))
+	conn.Do("EXPIREAT", store.formatKey(key), value.MaxExpiry.Unix())
 }
 
 func (store redisStore) get(key string) (value storeValue, found bool) {
-	encodedVal, err := redis.Bytes(store.conn.Do("GET", store.formatKey(key)))
+	conn := store.pool.Get()
+	defer conn.Close()
+	encodedVal, err := redis.Bytes(conn.Do("GET", store.formatKey(key)))
 	if encodedVal == nil || err != nil {
 		return storeValue{}, false
 	}
@@ -59,11 +71,15 @@ func (store redisStore) get(key string) (value storeValue, found bool) {
 }
 
 func (store redisStore) unset(key string) {
-	store.conn.Do("DEL", store.formatKey(key))
+	conn := store.pool.Get()
+	defer conn.Close()
+	conn.Do("DEL", store.formatKey(key))
 }
 
 func (store redisStore) unsetAll(userID string) {
-	keys, err := redis.Strings(store.conn.Do("KEYS", store.formatKey(userID+"-*")))
+	conn := store.pool.Get()
+	defer conn.Close()
+	keys, err := redis.Strings(conn.Do("KEYS", store.formatKey(userID+"-*")))
 	if err != nil {
 		return
 	}
@@ -71,5 +87,5 @@ func (store redisStore) unsetAll(userID string) {
 	for i, v := range keys {
 		s[i] = v
 	}
-	store.conn.Do("DEL", s...)
+	conn.Do("DEL", s...)
 }
