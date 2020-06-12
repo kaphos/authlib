@@ -9,7 +9,7 @@ import (
 func TestSetInMemStore(t *testing.T) {
 	key := string(securecookie.GenerateRandomKey(32))
 	token := string(securecookie.GenerateRandomKey(256))
-	userID := "1"
+	userID := randStr(64)
 	testObject().setInMemStore(key, token, userID)
 }
 
@@ -17,7 +17,7 @@ func TestCheckLoginCookie(t *testing.T) {
 	// Set up test
 	key := string(securecookie.GenerateRandomKey(32))
 	token := string(securecookie.GenerateRandomKey(256))
-	userID := "2"
+	userID := randStr(64)
 	a := testObject()
 	a.setInMemStore(key, quickHash(token), userID)
 

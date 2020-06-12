@@ -41,11 +41,12 @@ func createRedisStore(connStr, namespace string) (redisStore, error) {
 }
 
 func (store redisStore) formatKey(key string) string {
-	return store.namespace + "key" + key
+	return store.namespace + "#" + key
 }
 
 func (store redisStore) set(key string, value storeValue) {
 	store.conn.Do("SET", store.formatKey(key), encodeGob(value))
+	store.conn.Do("EXPIREAT", store.formatKey(key), value.MaxExpiry.Unix())
 }
 
 func (store redisStore) get(key string) (value storeValue, found bool) {

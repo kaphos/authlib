@@ -140,14 +140,16 @@ func (a *Object) Logout(opts HTTPOpts) {
 
 	cookieObj, err := a.sc.Get(opts.HTTPRequest, "auth")
 	if err == nil {
+		// Remove item from in-mem storage
 		a.store.unset(cookieObj.Key)
 	}
-	a.sc.Set(opts.HTTPWriter, "auth", cookieValue{}, 0)
+	// Remove cookie from the user side
+	a.sc.Set(opts.HTTPWriter, "auth", cookieValue{}, -1)
 
 	// Clear remember me also, if it exists
 	cookieObj, err = a.sc.Get(opts.HTTPRequest, "rmbme")
 	if err == nil {
-		a.sc.Set(opts.HTTPWriter, "rmbme", cookieValue{}, 0)
+		a.sc.Set(opts.HTTPWriter, "rmbme", cookieValue{}, -1)
 		a.db.RemoveSingle(cookieObj.Key)
 	}
 }

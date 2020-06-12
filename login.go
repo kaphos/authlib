@@ -26,6 +26,7 @@ func (a *Object) setInMemStore(key, hashedToken, userID string) {
 }
 
 func (a *Object) saveLoginInStore(userID string) (key, token string) {
+	// We prefix the key with user ID, to help with 'forget all' for Redis (can just do a wildcard search)
 	key = userID + "-" + string(securecookie.GenerateRandomKey(32))
 	token = string(securecookie.GenerateRandomKey(256))
 	a.setInMemStore(key, quickHash(token), userID)

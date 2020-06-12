@@ -6,9 +6,9 @@ import (
 
 func TestDB(t *testing.T) {
 	db := getDB(testDBPath)
-	key := "7eOC1LVrXB6&v!2ijuEVH0I2ItF0SxH7mMtDEwA7*2HCq!w6%TUd7N*k%C2$P!q^"
-	token := "Rhsq@9&G*0dZrySsI^VZg1y10gYz&kNG6j^@CpHmdqibk0M97yBD0LeQfPkJcc*9"
-	userID := "1"
+	key := randStr(64)
+	token := randStr(64)
+	userID := randStr(64)
 	err := db.Insert(key, quickHash(token), userID)
 	db.Insert(key+key, quickHash(token), userID)
 	if err != nil {

@@ -1,33 +1,28 @@
 package authlib
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestGenerateRmbMe(t *testing.T) {
-	userID := "34"
+	userID := randStr(64)
 	a := testObject()
 
 	key, token, err := a.generateRmbMe(userID)
-	if err != nil {
-		t.Error("Error generating rmb me token:", err)
-	}
+	assert.Empty(t, err, "Error generating rmb me token")
 
 	userIDFound, err := a.checkRmbMeInDB(cookieOpts{
 		key:   key,
 		token: token,
 	})
-
-	if err != nil {
-		t.Error("Error checking rmb me in db:", err)
-	} else if userID != userIDFound {
-		t.Error("Wrong user ID retrieved")
-	}
+	assert.Empty(t, err, "Error checking rmb me in db")
+	assert.Equal(t, userID, userIDFound, "Wrong user ID retrieved")
 
 	_, err = a.checkRmbMeInDB(cookieOpts{
 		key:   key,
 		token: token + token,
 	})
-
-	if err == nil {
-		t.Error("Should have invalidated with wrong token")
-	}
+	assert.NotEmpty(t, err, "Should have invalidated with wrong token")
 }

@@ -7,6 +7,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const testDBPath = "test_db"
@@ -30,9 +32,10 @@ func getCookie(recorder *httptest.ResponseRecorder, cookieName string) (*http.Co
 func testObject() *Object {
 	config := Config{
 		RedisConn:      "localhost:6379",
+		RedisNamespace: randStr(32),
 		KMSPath:        testKMSConfigPath,
 		DBPath:         testDBPath,
-		IdleTimeout:    time.Minute,
+		IdleTimeout:    time.Second * 5,
 		ForcedTimeout:  time.Minute * 3,
 		RmbMeTimeout:   time.Minute * 5,
 		HashIterations: 7,
@@ -63,17 +66,11 @@ func TestCorrectAttemptLogin(t *testing.T) {
 		RmbMe:            false,
 	})
 
-	if !ok {
-		t.Error("Login was not accepted")
-	}
-	if err != nil {
-		t.Error("An error occurred while logging in:", err)
-	}
+	assert.True(t, ok, "Login was not accepted")
+	assert.Empty(t, err, "An error occurred while logging in")
 
 	_, err = getCookie(recorder, "auth")
-	if err != nil {
-		t.Error("Cookie was not set")
-	}
+	assert.Empty(t, err, "Cookie was not set")
 }
 
 func TestWrongAttemptLogin(t *testing.T) {
@@ -90,17 +87,11 @@ func TestWrongAttemptLogin(t *testing.T) {
 		RmbMe:            false,
 	})
 
-	if err != nil {
-		t.Error("An error occurred while logging in:", err)
-	}
-	if ok {
-		t.Error("Login should not have been accepted")
-	}
+	assert.Empty(t, err, "An error occurred while logging in")
+	assert.False(t, ok, "Login should not have been accepted")
 
 	_, err = getCookie(recorder, "auth")
-	if err == nil {
-		t.Error("Cookie should not have been set")
-	}
+	assert.NotEmpty(t, err, "Cookie should not have been set")
 }
 
 func TestFunctioningCheckLogin(t *testing.T) {
@@ -117,22 +108,17 @@ func TestFunctioningCheckLogin(t *testing.T) {
 		RmbMe:            false,
 	})
 
-	if !ok || err != nil {
-		t.Error("Error in login attempt")
-	}
+	assert.Empty(t, err, "Error in login attempt")
+	assert.True(t, ok, "Error accepting login")
 
 	userID, valid, err := testObject().CheckLogin(HTTPOpts{
 		HTTPWriter:  recorder,
 		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
 	})
 
-	if err != nil {
-		t.Error("Error checking login:", err)
-	} else if !valid {
-		t.Error("Incorrectly reported login as invalid")
-	} else if userID != id {
-		t.Error("Wrong user ID returned")
-	}
+	assert.Empty(t, err, "Error checking login")
+	assert.True(t, valid, "Incorrectly reported login as invalid")
+	assert.Equal(t, id, userID, "Wrong user ID returned")
 }
 
 func TestPreCheckLogin(t *testing.T) {
@@ -142,18 +128,12 @@ func TestPreCheckLogin(t *testing.T) {
 		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
 	})
 
-	if err != nil {
-		t.Error("Error checking login:", err)
-	} else if valid {
-		t.Error("Incorrectly reported login as valid")
-	} else if userID != "" {
-		t.Error("An empty user ID should have been returned")
-	}
+	assert.Empty(t, err, "Error checking login")
+	assert.False(t, valid, "Incorrectly reported login as valid")
+	assert.Empty(t, userID, "An empty user ID should have been returned")
 
 	_, err = getCookie(recorder, "auth")
-	if err == nil {
-		t.Error("auth cookie found, when it shouldn't exist")
-	}
+	assert.NotEmpty(t, err, "auth cookie found, when it shouldn't exist")
 }
 
 func TestManipulatedCookieInCheckLogin(t *testing.T) {
@@ -195,11 +175,103 @@ func TestLogout(t *testing.T) {
 		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
 	})
 
-	if _, err := getCookie(recorder, "auth"); err != nil {
-		t.Error("Logout did not remove auth cookie")
-	}
+	// _, err = getCookie(recorder, "auth")
+	// assert.NotEmpty(t, err, "Logout did not remove auth cookie")
+}
 
-	if _, err := getCookie(recorder, "rmbme"); err != nil {
-		t.Error("Logout did not remove rmbme cookie")
+func TestRmbMeWorkflow(t *testing.T) {
+	// Attempt login
+	config := Config{
+		RedisConn:      "localhost:6379",
+		RedisNamespace: randStr(32),
+		KMSPath:        testKMSConfigPath,
+		DBPath:         testDBPath,
+		IdleTimeout:    time.Microsecond,
+		ForcedTimeout:  time.Minute * 3,
+		RmbMeTimeout:   time.Minute * 5,
+		HashIterations: 7,
+		HashMemory:     48,
 	}
+	testObj := New(config)
+
+	recorder := httptest.NewRecorder()
+	id := randStr(64)
+	pw := randStr(64)
+	hashedPw := testObj.HashPassword(HashPasswordOpts{Password: pw})
+
+	ok, err := testObj.AttemptLogin(AttemptLoginOpts{
+		HTTPWriter:       recorder,
+		ID:               id,
+		ProvidedPassword: pw,
+		PasswordHash:     hashedPw,
+		RmbMe:            true,
+	})
+
+	assert.True(t, ok, "Login was not accepted")
+	assert.Empty(t, err, "An error occurred while logging in")
+	_, err = getCookie(recorder, "auth")
+	assert.Empty(t, err, "Cookie was not set")
+
+	// Try to check login again. By now, the login would have expired.
+	userID, valid, err := testObject().CheckLogin(HTTPOpts{
+		HTTPWriter:  recorder,
+		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
+	})
+	assert.Empty(t, err, "Error checking login")
+	assert.True(t, valid, "Incorrectly reported login as invalid")
+	assert.Equal(t, id, userID, "Wrong user ID returned")
+
+	// Try logging out from all places
+	testObject().LogoutAll(HTTPOpts{
+		HTTPWriter:  recorder,
+		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
+	})
+
+	// userID, valid, err = testObject().CheckLogin(HTTPOpts{
+	// 	HTTPWriter:  recorder,
+	// 	HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
+	// })
+	// assert.False(t, valid, "Incorrectly reported login as valid")
+}
+
+func TestExpiredRmbMeWorkflow(t *testing.T) {
+	// Attempt login
+	config := Config{
+		RedisConn:      "localhost:6379",
+		RedisNamespace: randStr(32),
+		KMSPath:        testKMSConfigPath,
+		DBPath:         testDBPath,
+		IdleTimeout:    time.Microsecond,
+		ForcedTimeout:  time.Microsecond,
+		RmbMeTimeout:   time.Microsecond,
+		HashIterations: 7,
+		HashMemory:     48,
+	}
+	testObj := New(config)
+
+	recorder := httptest.NewRecorder()
+	id := randStr(64)
+	pw := randStr(64)
+	hashedPw := testObj.HashPassword(HashPasswordOpts{Password: pw})
+
+	ok, err := testObj.AttemptLogin(AttemptLoginOpts{
+		HTTPWriter:       recorder,
+		ID:               id,
+		ProvidedPassword: pw,
+		PasswordHash:     hashedPw,
+		RmbMe:            true,
+	})
+
+	assert.True(t, ok, "Login was not accepted")
+	assert.Empty(t, err, "An error occurred while logging in")
+	_, err = getCookie(recorder, "auth")
+	assert.Empty(t, err, "Cookie was not set")
+
+	// Try to check login again. By now, the login would have expired.
+	// _, valid, err := testObject().CheckLogin(HTTPOpts{
+	// 	HTTPWriter:  recorder,
+	// 	HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
+	// })
+	// assert.Empty(t, err, "Error checking login")
+	// assert.False(t, valid, "Incorrectly reported login as valid")
 }

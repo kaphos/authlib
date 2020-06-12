@@ -41,7 +41,7 @@ func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookieVal
 		if len(sc.config.CookiePath) > 0 {
 			path = sc.config.CookiePath
 		}
-		cookie := &http.Cookie{
+		cookie := http.Cookie{
 			Name:     key,
 			Value:    encoded,
 			Path:     path,
@@ -50,8 +50,7 @@ func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookieVal
 			Expires:  time.Now().Add(cookieLifetime),
 			MaxAge:   int(cookieLifetime.Seconds()),
 		}
-
-		http.SetCookie(w, cookie)
+		http.SetCookie(w, &cookie)
 	} else {
 		err = encErr
 	}
