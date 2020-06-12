@@ -50,11 +50,11 @@ func (store redisStore) set(key string, value storeValue) {
 }
 
 func (store redisStore) get(key string) (value storeValue, found bool) {
-	encodedVal, err := store.conn.Do("GET", store.formatKey(key))
+	encodedVal, err := redis.Bytes(store.conn.Do("GET", store.formatKey(key)))
 	if encodedVal == nil || err != nil {
 		return storeValue{}, false
 	}
-	decodeGob(encodedVal.([]byte), &value)
+	decodeGob(encodedVal, &value)
 	return value, true
 }
 
