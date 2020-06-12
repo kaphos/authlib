@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 	"sync"
 
@@ -39,7 +38,7 @@ func getKMS(configPath string) *keyManagementStore {
 }
 
 func createKMSFile(configPath string) (kms keyManagementStore) {
-	log.Println(configPath + " not found. Generating new file.")
+	getLogger().Info(configPath + " not found. Generating new file.")
 	kms.CookiesHash = securecookie.GenerateRandomKey(64)
 	kms.CookiesBlock = securecookie.GenerateRandomKey(32)
 
@@ -48,14 +47,14 @@ func createKMSFile(configPath string) (kms keyManagementStore) {
 	// Encode to base64 and write to disk
 	jsonBody = []byte(base64.RawStdEncoding.EncodeToString(jsonBody))
 	ioutil.WriteFile(configPath, jsonBody, 0600)
-	log.Println("Generated keys saved at " + configPath)
+	getLogger().Info("Generated keys saved at " + configPath)
 	return
 }
 
 func loadKMSFile(configPath string) (kms keyManagementStore) {
 	file, err := os.Open(configPath)
 	if err != nil {
-		log.Fatalln("Could not open " + configPath)
+		getLogger().Fatal("Could not open " + configPath)
 	}
 
 	defer file.Close()
@@ -64,15 +63,15 @@ func loadKMSFile(configPath string) (kms keyManagementStore) {
 	fileContents, _ := ioutil.ReadAll(file)
 	fileContents, err = base64.RawStdEncoding.DecodeString(string(fileContents))
 	if err != nil {
-		log.Fatalln("Could not decode JSON.")
+		getLogger().Fatal("Could not decode JSON.")
 	}
 
 	// Unmarshal into struct
 	err = json.Unmarshal(fileContents, &kms)
 	if err != nil {
-		log.Fatalln("Could not parse config file.")
+		getLogger().Fatal("Could not parse config file.")
 	} else {
-		log.Println("Loaded keys from " + configPath)
+		getLogger().Info("Loaded keys from " + configPath)
 	}
 
 	return
