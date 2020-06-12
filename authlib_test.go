@@ -170,13 +170,27 @@ func TestLogout(t *testing.T) {
 		t.Error("Error in login attempt")
 	}
 
-	testObject().Logout(HTTPOpts{
+	userID, valid, err := testObject().CheckLogin(HTTPOpts{
 		HTTPWriter:  recorder,
 		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
 	})
 
-	// _, err = getCookie(recorder, "auth")
-	// assert.NotEmpty(t, err, "Logout did not remove auth cookie")
+	assert.NotEmpty(t, userID, "User ID shouldn't be empty")
+
+	request := &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}}
+	recorder = httptest.NewRecorder()
+
+	testObject().Logout(HTTPOpts{
+		HTTPWriter:  recorder,
+		HTTPRequest: request,
+	})
+
+	userID, valid, err = testObject().CheckLogin(HTTPOpts{
+		HTTPWriter:  recorder,
+		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
+	})
+	assert.Empty(t, userID, "User ID should be empty")
+	assert.False(t, valid, "Should have reported login as invalid")
 }
 
 func TestRmbMeWorkflow(t *testing.T) {
@@ -220,18 +234,47 @@ func TestRmbMeWorkflow(t *testing.T) {
 	assert.Empty(t, err, "Error checking login")
 	assert.True(t, valid, "Incorrectly reported login as invalid")
 	assert.Equal(t, id, userID, "Wrong user ID returned")
+}
 
-	// Try logging out from all places
-	testObject().LogoutAll(HTTPOpts{
+func TestLogoutFromAll(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	id := randStr(64)
+	pw := randStr(64)
+	hashedPw := testObject().HashPassword(HashPasswordOpts{Password: pw})
+
+	ok, err := testObject().AttemptLogin(AttemptLoginOpts{
+		HTTPWriter:       recorder,
+		ID:               id,
+		ProvidedPassword: pw,
+		PasswordHash:     hashedPw,
+		RmbMe:            true,
+	})
+
+	if !ok || err != nil {
+		t.Error("Error in login attempt")
+	}
+
+	userID, valid, err := testObject().CheckLogin(HTTPOpts{
 		HTTPWriter:  recorder,
 		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
 	})
 
-	// userID, valid, err = testObject().CheckLogin(HTTPOpts{
-	// 	HTTPWriter:  recorder,
-	// 	HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
-	// })
-	// assert.False(t, valid, "Incorrectly reported login as valid")
+	assert.NotEmpty(t, userID, "User ID shouldn't be empty")
+
+	request := &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}}
+	recorder = httptest.NewRecorder()
+
+	testObject().LogoutAll(HTTPOpts{
+		HTTPWriter:  recorder,
+		HTTPRequest: request,
+	})
+
+	userID, valid, err = testObject().CheckLogin(HTTPOpts{
+		HTTPWriter:  recorder,
+		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
+	})
+	assert.Empty(t, userID, "User ID should be empty")
+	assert.False(t, valid, "Should have reported login as invalid")
 }
 
 func TestExpiredRmbMeWorkflow(t *testing.T) {
@@ -268,10 +311,11 @@ func TestExpiredRmbMeWorkflow(t *testing.T) {
 	assert.Empty(t, err, "Cookie was not set")
 
 	// Try to check login again. By now, the login would have expired.
-	// _, valid, err := testObject().CheckLogin(HTTPOpts{
-	// 	HTTPWriter:  recorder,
-	// 	HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
-	// })
-	// assert.Empty(t, err, "Error checking login")
-	// assert.False(t, valid, "Incorrectly reported login as valid")
+	userID, valid, err := testObject().CheckLogin(HTTPOpts{
+		HTTPWriter:  recorder,
+		HTTPRequest: &http.Request{Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]}},
+	})
+	assert.Empty(t, err, "Error checking login")
+	assert.Empty(t, userID, "User ID should be empty")
+	assert.False(t, valid, "Incorrectly reported login as valid")
 }

@@ -23,8 +23,9 @@ type cookieOpts struct {
 
 // cookieValue contains the data that will be stored as a secure cookie
 type cookieValue struct {
-	Key   string
-	Token string
+	Key     string
+	Token   string
+	Expires time.Time
 }
 
 type storeValue struct {

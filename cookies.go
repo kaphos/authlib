@@ -36,6 +36,9 @@ func getSC(config Config) *secureCookie {
 // Set creates a secure cookie using the given payload.
 func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookieValue, cookieLifetime time.Duration) (err error) {
 	// Set the cookie
+	if cookieLifetime > 0 {
+		payload.Expires = time.Now().Add(cookieLifetime)
+	}
 	if encoded, encErr := sc.SC.Encode(key, payload); encErr == nil {
 		path := "/"
 		if len(sc.config.CookiePath) > 0 {
@@ -47,7 +50,7 @@ func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookieVal
 			Path:     path,
 			Secure:   sc.config.CookieSecure,
 			HttpOnly: sc.config.CookieHTTPOnly,
-			Expires:  time.Now().Add(cookieLifetime),
+			Expires:  payload.Expires,
 			MaxAge:   int(cookieLifetime.Seconds()),
 		}
 		http.SetCookie(w, &cookie)
@@ -58,10 +61,18 @@ func (sc *secureCookie) Set(w http.ResponseWriter, key string, payload cookieVal
 }
 
 // Get retrieves and decodes a secure cookie.
-func (sc *secureCookie) Get(r *http.Request, key string) (value cookieValue, err error) {
+func (sc *secureCookie) Get(r *http.Request, key string) (cookieValue, error) {
 	cookie, err := r.Cookie(key)
 	if err == nil {
+		var value cookieValue
 		err = sc.SC.Decode(key, cookie.Value, &value)
+		if err != nil {
+			return cookieValue{}, err
+		}
+		if value.Expires.Before(time.Now()) {
+			return cookieValue{}, http.ErrNoCookie
+		}
+		return value, nil
 	}
-	return
+	return cookieValue{}, err
 }

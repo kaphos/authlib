@@ -143,6 +143,7 @@ func (a *Object) Logout(opts HTTPOpts) {
 		// Remove item from in-mem storage
 		a.store.unset(cookieObj.Key)
 	}
+
 	// Remove cookie from the user side
 	a.sc.Set(opts.HTTPWriter, "auth", cookieValue{}, -1)
 
