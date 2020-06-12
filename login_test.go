@@ -44,5 +44,5 @@ func TestCheckLoginCookie(t *testing.T) {
 
 func TestSaveLoginInDB(t *testing.T) {
 	a := testObject()
-	a.saveLoginInDB("1")
+	a.saveLoginInStore("1")
 }

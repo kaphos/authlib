@@ -17,7 +17,7 @@ func (a *Object) setCookie(key, token string, w http.ResponseWriter) (err error)
 }
 
 func (a *Object) setInMemStore(key, hashedToken, userID string) {
-	getStore().set(key, storeValue{
+	getStore(a.config.RedisConn, a.config.RedisNamespace).set(key, storeValue{
 		HashedToken: hashedToken,
 		UserID:      userID,
 		Expires:     time.Now().Add(a.config.IdleTimeout),   // Logs user out if they idle for more than 1 hour
@@ -25,8 +25,8 @@ func (a *Object) setInMemStore(key, hashedToken, userID string) {
 	})
 }
 
-func (a *Object) saveLoginInDB(userID string) (key, token string) {
-	key = string(securecookie.GenerateRandomKey(32))
+func (a *Object) saveLoginInStore(userID string) (key, token string) {
+	key = userID + "-" + string(securecookie.GenerateRandomKey(32))
 	token = string(securecookie.GenerateRandomKey(256))
 	a.setInMemStore(key, quickHash(token), userID)
 	return
@@ -40,7 +40,7 @@ func (a *Object) saveLogin(opts saveLoginOpts) (err error) {
 	}
 
 	// Generate a key and token, and save it in the database first
-	key, token := a.saveLoginInDB(opts.userID)
+	key, token := a.saveLoginInStore(opts.userID)
 
 	// Build an encrypted cookie to store this key and token on the user side as well
 	err = a.setCookie(key, token, opts.w)

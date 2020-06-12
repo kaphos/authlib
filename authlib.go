@@ -12,7 +12,7 @@ import (
 type Object struct {
 	config Config
 	sc     *secureCookie
-	store  *inMemStore
+	store  storeInterface
 	kms    *keyManagementStore
 	db     *database
 }
@@ -21,10 +21,13 @@ type Object struct {
 // Takes in a Config object, highlighting paths for the database & KMS store, as well as parameters
 // for timeouts & argon2 hashing.
 func New(config Config) *Object {
+	redisConn := config.RedisConn // convert to empty string if nil
+	redisNamespace := config.RedisNamespace
+
 	authObj := Object{
 		config: config,
 		sc:     getSC(config),
-		store:  getStore(),
+		store:  getStore(redisConn, redisNamespace),
 		kms:    getKMS(config.KMSPath),
 		db:     getDB(config.DBPath),
 	}

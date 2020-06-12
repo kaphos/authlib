@@ -29,6 +29,7 @@ func getCookie(recorder *httptest.ResponseRecorder, cookieName string) (*http.Co
 
 func testObject() *Object {
 	config := Config{
+		RedisConn:      "localhost:6379",
 		KMSPath:        testKMSConfigPath,
 		DBPath:         testDBPath,
 		IdleTimeout:    time.Minute,

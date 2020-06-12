@@ -6,8 +6,10 @@ import (
 
 // Config contains the package parameters that can be tuned
 type Config struct {
-	KMSPath        string        // Where the generated keys should be stored (for using securecookies)
-	DBPath         string        // Where the sqlite3 database should be stored
+	RedisConn      string        // Connection string for Redis, if applicable. Leaving it blank will cause it to default to use in-mem map storage
+	RedisNamespace string        // Namespace to use to prefix keys in Redis
+	KMSPath        string        // Where the generated secure cookie keys should be stored
+	DBPath         string        // Where the sqlite3 database should be stored (for rmb me)
 	IdleTimeout    time.Duration // How long they can be idle before they're logged out
 	ForcedTimeout  time.Duration // How long the session can persist before they're asked to log in again
 	RmbMeTimeout   time.Duration // How long the "Remember Me" token is valid for
