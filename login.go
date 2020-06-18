@@ -59,12 +59,19 @@ func (a *Object) saveLogin(opts saveLoginOpts) (err error) {
 // checkValidCookie checks if a provided cookie can be found in our
 // in-mem storage, and if it has expired.
 func (a *Object) checkValidCookie(opts cookieOpts) (userID string, valid bool) {
+	var span, storeSpan opentracing.Span
+	var spanContext opentracing.SpanContext
 	if opts.spanContext != nil {
-		span := opentracing.StartSpan("authlib-checkValidCookie", opentracing.ChildOf(opts.spanContext))
+		span = opentracing.StartSpan("authlib-checkValidCookie", opentracing.ChildOf(opts.spanContext))
 		defer span.Finish()
+		spanContext = span.Context()
+		storeSpan = opentracing.StartSpan("authlib-storeGet", opentracing.ChildOf(spanContext))
 	}
 
 	storedValue, found := a.store.get(opts.key)
+	if storeSpan != nil {
+		storeSpan.Finish()
+	}
 	if !found {
 		return
 	}
@@ -78,12 +85,17 @@ func (a *Object) checkValidCookie(opts cookieOpts) (userID string, valid bool) {
 	match, err := comparePasswordAndHash(comparePasswordOpts{
 		password:    opts.token,
 		encodedHash: storedValue.HashedToken,
+		spanContext: spanContext,
 	})
 	if err != nil || !match {
 		return
 	}
 
 	// Update expiry details
+	if spanContext != nil {
+		updateStoreSpan := opentracing.StartSpan("authlib-storeSet", opentracing.ChildOf(spanContext))
+		defer updateStoreSpan.Finish()
+	}
 	storedValue.Expires = time.Now().Add(a.config.IdleTimeout)
 	if storedValue.Expires.After(storedValue.MaxExpiry) {
 		storedValue.Expires = storedValue.MaxExpiry
