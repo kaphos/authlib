@@ -1,9 +1,11 @@
 package authlib
 
 import (
+	"crypto/subtle"
 	"net/http"
 
 	"github.com/opentracing/opentracing-go"
+	"golang.org/x/crypto/argon2"
 )
 
 // Object contains the initialised config, along with several helper modules
@@ -50,6 +52,33 @@ func (a *Object) HashPassword(opts HashPasswordOpts) (hash string) {
 		hashIterations = 7
 	}
 	return argon2Hash(opts.Password, hashMemory, hashIterations)
+}
+
+// ComparePasswordAndHash exposes a helper function to check if a provided password
+// matches a previously generated hash. Check against match to see if password is valid
+// or not. Error is used to indicate if there is any issue with the underlying system.
+func ComparePasswordAndHash(opts ComparePasswordOpts) (match bool, err error) {
+	if opts.spanContext != nil {
+		span := opentracing.StartSpan("authlib-comparePw", opentracing.ChildOf(opts.spanContext))
+		defer span.Finish()
+	}
+
+	// Extract the parameters, salt and derived key from the encoded password hash.
+	p, salt, hash, err := decodeHash(opts.encodedHash)
+	if err != nil {
+		return false, err
+	}
+
+	// Derive the key from the other password using the same parameters.
+	otherHash := argon2.IDKey([]byte(opts.password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+
+	// Check that the contents of the hashed passwords are identical. Note
+	// that we are using the subtle.ConstantTimeCompare() function for this
+	// to help prevent timing attacks.
+	if subtle.ConstantTimeCompare(hash, otherHash) == 1 {
+		return true, nil
+	}
+	return false, nil
 }
 
 // AttemptLogin for a given user. Called when trying to log in.

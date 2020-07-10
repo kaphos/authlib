@@ -7,6 +7,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 )
 
+// ComparePasswordOpts bundles the options for comparing a
+// password against a hash.
 type ComparePasswordOpts struct {
 	password    string
 	encodedHash string
