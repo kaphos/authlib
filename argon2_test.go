@@ -11,8 +11,8 @@ func TestHashPassword(t *testing.T) {
 	a := testObject()
 	hash := a.HashPassword(HashPasswordOpts{Password: password})
 	match, err := ComparePasswordAndHash(ComparePasswordOpts{
-		password:    password,
-		encodedHash: hash,
+		Password:    password,
+		EncodedHash: hash,
 	})
 
 	assert.Empty(t, err, "Error comparing password")
@@ -20,8 +20,8 @@ func TestHashPassword(t *testing.T) {
 
 	hash = quickHash(password) // Run a quick hash also
 	match, err = ComparePasswordAndHash(ComparePasswordOpts{
-		password:    password,
-		encodedHash: hash,
+		Password:    password,
+		EncodedHash: hash,
 	})
 
 	assert.Empty(t, err, "Error comparing password from quick hash")

@@ -58,19 +58,19 @@ func (a *Object) HashPassword(opts HashPasswordOpts) (hash string) {
 // matches a previously generated hash. Check against match to see if password is valid
 // or not. Error is used to indicate if there is any issue with the underlying system.
 func ComparePasswordAndHash(opts ComparePasswordOpts) (match bool, err error) {
-	if opts.spanContext != nil {
-		span := opentracing.StartSpan("authlib-comparePw", opentracing.ChildOf(opts.spanContext))
+	if opts.SpanContext != nil {
+		span := opentracing.StartSpan("authlib-comparePw", opentracing.ChildOf(opts.SpanContext))
 		defer span.Finish()
 	}
 
 	// Extract the parameters, salt and derived key from the encoded password hash.
-	p, salt, hash, err := decodeHash(opts.encodedHash)
+	p, salt, hash, err := decodeHash(opts.EncodedHash)
 	if err != nil {
 		return false, err
 	}
 
 	// Derive the key from the other password using the same parameters.
-	otherHash := argon2.IDKey([]byte(opts.password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+	otherHash := argon2.IDKey([]byte(opts.Password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
 
 	// Check that the contents of the hashed passwords are identical. Note
 	// that we are using the subtle.ConstantTimeCompare() function for this
@@ -98,8 +98,8 @@ func (a *Object) AttemptLogin(opts AttemptLoginOpts) (ok bool, err error) {
 	}
 
 	match, err := ComparePasswordAndHash(ComparePasswordOpts{
-		password:    opts.ProvidedPassword,
-		encodedHash: opts.PasswordHash,
+		Password:    opts.ProvidedPassword,
+		EncodedHash: opts.PasswordHash,
 	})
 	if match {
 		// Password matches hash. Perform login.

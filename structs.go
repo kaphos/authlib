@@ -10,9 +10,9 @@ import (
 // ComparePasswordOpts bundles the options for comparing a
 // password against a hash.
 type ComparePasswordOpts struct {
-	password    string
-	encodedHash string
-	spanContext opentracing.SpanContext
+	Password    string
+	EncodedHash string
+	SpanContext opentracing.SpanContext
 }
 
 // cookieOpts is the structure of the cookie that is used

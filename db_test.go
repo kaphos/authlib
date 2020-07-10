@@ -21,8 +21,8 @@ func TestDB(t *testing.T) {
 	} else if userID != fetchedID {
 		t.Errorf("Wrong user ID retrieved. Expected %s, got %s", userID, fetchedID)
 	} else if match, _ := ComparePasswordAndHash(ComparePasswordOpts{
-		password:    token,
-		encodedHash: hashedToken,
+		Password:    token,
+		EncodedHash: hashedToken,
 	}); !match {
 		t.Error("Wrong hashed token retrieved.")
 	}
