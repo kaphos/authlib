@@ -68,7 +68,7 @@ func (a *Object) AttemptLogin(opts AttemptLoginOpts) (ok bool, err error) {
 		spanContext = span.Context()
 	}
 
-	match, err := comparePasswordAndHash(comparePasswordOpts{
+	match, err := ComparePasswordAndHash(ComparePasswordOpts{
 		password:    opts.ProvidedPassword,
 		encodedHash: opts.PasswordHash,
 	})

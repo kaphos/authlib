@@ -86,7 +86,7 @@ func decodeHash(encodedHash string) (p *params, salt, hash []byte, err error) {
 	return p, salt, hash, nil
 }
 
-func comparePasswordAndHash(opts comparePasswordOpts) (match bool, err error) {
+func ComparePasswordAndHash(opts ComparePasswordOpts) (match bool, err error) {
 	if opts.spanContext != nil {
 		span := opentracing.StartSpan("authlib-comparePw", opentracing.ChildOf(opts.spanContext))
 		defer span.Finish()

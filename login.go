@@ -82,7 +82,7 @@ func (a *Object) checkValidCookie(opts cookieOpts) (userID string, valid bool) {
 	}
 
 	// Check if the hashes match
-	match, err := comparePasswordAndHash(comparePasswordOpts{
+	match, err := ComparePasswordAndHash(ComparePasswordOpts{
 		password:    opts.token,
 		encodedHash: storedValue.HashedToken,
 		spanContext: spanContext,

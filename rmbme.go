@@ -24,7 +24,7 @@ func (a *Object) checkRmbMeInDB(cookieOptsValue cookieOpts) (userID string, err 
 		return
 	}
 
-	match, err := comparePasswordAndHash(comparePasswordOpts{
+	match, err := ComparePasswordAndHash(ComparePasswordOpts{
 		password:    cookieOptsValue.token,
 		encodedHash: storedHash,
 	})

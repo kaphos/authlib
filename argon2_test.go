@@ -10,7 +10,7 @@ func TestHashPassword(t *testing.T) {
 	password := randStr(64)
 	a := testObject()
 	hash := a.HashPassword(HashPasswordOpts{Password: password})
-	match, err := comparePasswordAndHash(comparePasswordOpts{
+	match, err := ComparePasswordAndHash(ComparePasswordOpts{
 		password:    password,
 		encodedHash: hash,
 	})
@@ -19,7 +19,7 @@ func TestHashPassword(t *testing.T) {
 	assert.True(t, match, "Error matching password")
 
 	hash = quickHash(password) // Run a quick hash also
-	match, err = comparePasswordAndHash(comparePasswordOpts{
+	match, err = ComparePasswordAndHash(ComparePasswordOpts{
 		password:    password,
 		encodedHash: hash,
 	})

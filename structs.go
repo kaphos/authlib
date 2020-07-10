@@ -7,7 +7,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 )
 
-type comparePasswordOpts struct {
+type ComparePasswordOpts struct {
 	password    string
 	encodedHash string
 	spanContext opentracing.SpanContext
