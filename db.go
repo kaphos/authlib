@@ -1,16 +1,18 @@
 package authlib
 
 import (
-	"database/sql"
 	"sync"
-
-	_ "github.com/mattn/go-sqlite3" // SQL database driver
 )
 
 // Database - used to connect to the database
 type database struct {
 	Connected bool
-	DB        *sql.DB
+	DB        map[string]Store
+}
+
+type Store struct {
+	UserID    string
+	TokenHash string
 }
 
 var dbSingleton *database
@@ -28,46 +30,41 @@ func getDB(dbPath string) *database {
 
 // Init - Initialises the database object
 func (d *database) init(dbPath string) {
-	database, _ := sql.Open("sqlite3", dbPath)
-	stmt, _ := database.Prepare(`CREATE TABLE IF NOT EXISTS tokens (key TEXT PRIMARY KEY, token_hash TEXT, user_id TEXT)`)
-	stmt.Exec()
-
 	d.Connected = true
-	d.DB = database
+	d.DB = make(map[string]Store)
 }
 
 // Close the database connection
 func (d *database) Close() {
 	d.Connected = false
-	d.DB.Close()
 }
 
 // Insert a new entry into the database.
 func (d *database) Insert(key, hashedToken, userID string) (err error) {
-	_, err = d.DB.Exec(`INSERT INTO tokens (key, token_hash, user_id) VALUES ($1, $2, $3)`, key, hashedToken, userID)
-	return
+	d.DB[key] = Store{UserID: userID, TokenHash: hashedToken}
+	return nil
 }
 
 // Fetch a user ID and hashed token, given a key.
 func (d *database) Fetch(key string) (userID, hashedToken string, err error) {
-	row := d.DB.QueryRow(`SELECT user_id, token_hash FROM tokens WHERE key = $1 LIMIT 1`, key)
-	dbErr := row.Scan(&userID, &hashedToken)
-	if dbErr != sql.ErrNoRows {
-		err = dbErr // We only want to raise implementation errors
+	result, ok := d.DB[key]
+	if !ok {
+		return
 	}
-	return
+
+	return result.UserID, result.TokenHash, nil
 }
 
 // RemoveSingle removes a single entry from the database
 // based on a given key. Used when a user wants to log out
 // from a single session.
 func (d *database) RemoveSingle(key string) {
-	d.DB.Exec(`DELETE FROM tokens WHERE key = $1`, key)
+	delete(d.DB, key)
 }
 
 // RemoveAll removes all entries from the database
 // based on a given user ID. Used when a user wants to log out
 // from all sessions.
 func (d *database) RemoveAll(userID string) {
-	d.DB.Exec(`DELETE FROM tokens WHERE user_id = $1`, userID)
+	// d.DB.Exec(`DELETE FROM tokens WHERE user_id = $1`, userID)
 }
